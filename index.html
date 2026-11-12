@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ứng Dụng Định Giá & Phân Khúc Xe Cũ - Nhóm 1</title>
+  <style>
+    * { box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; }
+    body { background: #f1f5f9; margin: 0; padding: 24px 12px; color: #1e293b; }
+    .card { max-width: 820px; margin: 0 auto; background: #fff; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; box-shadow: 0 6px 20px rgba(15,23,42,0.08); }
+    .header { background: #1b365d; color: #fff; text-align: center; padding: 16px; font-weight: 700; font-size: 17px; letter-spacing: 0.3px; }
+    .subbar { background: #eff6ff; text-align: center; padding: 10px 14px; font-size: 13.5px; border-bottom: 1px solid #cbd5e1; color: #1e293b; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 22px; padding: 22px 26px 14px; }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+    .field label { display: block; font-weight: 600; font-size: 13.5px; margin-bottom: 6px; color: #1e293b; }
+    .field input, .field select { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc; font-size: 14px; color: #334155; }
+    .field input:focus, .field select:focus { outline: none; border-color: #1d63dc; background: #fff; }
+    .btn-wrap { padding: 8px 26px 20px; text-align: center; }
+    .btn { width: 100%; max-width: 520px; background: #1d63dc; color: #fff; border: none; border-radius: 7px; padding: 13px 20px; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+    .btn:hover { background: #174ea6; }
+    .result { margin: 0 26px 24px; background: #f8fafc; border: 1px solid #cbd5e1; border-bottom: 3px solid #1b365d; border-radius: 8px; padding: 18px; text-align: center; }
+    .result-title { font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 6px; }
+    .result-price { font-size: 23px; font-weight: 800; color: #1b365d; margin-bottom: 4px; }
+    .result-cluster { font-size: 14px; font-weight: 600; color: #1d63dc; margin-bottom: 6px; }
+    .result-meta { font-size: 12.5px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">📱 GIAO DIỆN ỨNG DỤNG ĐỊNH GIÁ & PHÂN KHÚC XE CŨ (APP FOR USER)</div>
+    <div class="subbar">🌐 <strong>Mô hình thực nghiệm Nhóm 1:</strong> Decision Tree Regression & K-Means Clustering (125 mẫu xe)</div>
+
+    <div class="grid">
+      <div class="field">
+        <label for="year">1. Năm sản xuất (Year):</label>
+        <input type="number" id="year" value="2015" min="2005" max="2024" />
+      </div>
+      <div class="field">
+        <label for="kms">2. Quãng đường đi (Kms_Driven - km):</label>
+        <input type="number" id="kms" value="35500" min="500" max="300000" step="500" />
+      </div>
+      <div class="field">
+<label for="present">3. Giá niêm yết hiện tại (Present_Price - Lakhs):</label>
+        <input type="number" id="present" value="5.09" min="0.2" max="40" step="0.1" />
+      </div>
+      <div class="field">
+        <label for="fuel">4. Loại nhiên liệu (Fuel_Type):</label>
+        <select id="fuel">
+          <option value="Petrol" selected>Petrol (Xăng)</option>
+          <option value="Diesel">Diesel (Dầu)</option>
+          <option value="CNG">CNG (Khí nén)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="trans">5. Loại hộp số (Transmission):</label>
+        <select id="trans">
+          <option value="Manual" selected>Manual (Số sàn)</option>
+          <option value="Automatic">Automatic (Số tự động)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="owner">6. Đối tượng bán & Chủ sở hữu (Owner):</label>
+        <select id="owner">
+          <option value="0" selected>Dealer • 0 chủ trước đó</option>
+          <option value="1">Individual / 1 chủ trước đó</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="btn-wrap">
+      <button class="btn" onclick="runPredict()">🔍 BẤM ĐỂ DỰ ĐOÁN GIÁ XE (AI PREDICT)</button>
+    </div>
+
+    <div class="result">
+      <div class="result-title">KẾT QUẢ DỰ ĐOÁN GIÁ XE TỪ MÔ HÌNH AI:</div>
+      <div class="result-price" id="outPrice">3.11 Lakhs (~ 93.300.000 VNĐ)</div>
+      <div class="result-cluster" id="outCluster">Phân khúc K-Means: Cụm 2 – Phổ thông đời mới, tiết kiệm</div>
+      <div class="result-meta">(Mô hình: Decision Tree Regression | R² = 83,08% | MAE = 0,63 Lakhs | K-Means K = 3)</div>
+    </div>
+  </div>
+
+  <script>
+    // Cây quyết định CART (max_depth=5) huấn luyện trực tiếp trên bộ dữ liệu 125 xe của Nhóm 1
+    function predictDecisionTree(f) {
+      if (f.Present_Price <= 7.9550) {
+        if (f.Present_Price <= 2.8900) {
+          if (f.Present_Price <= 1.4450) {
+            if (f.Present_Price <= 1.0500) {
+              return f.Present_Price <= 0.9700 ? 0.2821 : 0.3500;
+            } else {
+              return f.Kms_Driven <= 37420.0 ? 0.8150 : 0.5833;
+            }
+          } else {
+            if (f.Year <= 2011.5) return 0.7000;
+            return f.Kms_Driven <= 35670.0 ? 1.4800 : 1.2200;
+          }
+        } else {
+          if (f.Kms_Driven <= 51790.0) {
+            if (f.Present_Price <= 5.6650) {
+              return f.Present_Price <= 4.0400 ? 2.2250 : 3.1075;
+            } else {
+              return f.Kms_Driven <= 46510.0 ? 5.3600 : 3.4800;
+            }
+          } else {
+            if (f.Year <= 2012.5) {
+              return f.Kms_Driven <= 101690.0 ? 2.0255 : 1.4600;
+            } else {
+              return f.Present_Price <= 5.7150 ? 2.0667 : 3.6300;
+            }
+          }
+        }
+      } else {
+        if (f.Year <= 2012.5) {
+if (f.Present_Price <= 13.0100) {
+            if (f.Year <= 2009.5) {
+              return f.Present_Price <= 10.9050 ? 2.2550 : 3.7100;
+            } else {
+              return f.Fuel_Type_Petrol <= 0.5 ? 3.6000 : 4.3300;
+            }
+          } else {
+            if (f.Year <= 2010.0) {
+              return f.Kms_Driven <= 95090.0 ? 4.3700 : 4.2800;
+            } else {
+              return 5.7200;
+            }
+          }
+        } else {
+          if (f.Year <= 2015.5) {
+            if (f.Present_Price <= 20.9600) {
+              return f.Kms_Driven <= 42683.5 ? 7.0900 : 5.6811;
+            } else {
+              return 8.9000;
+            }
+          } else {
+            if (f.Owner <= 0.5) {
+              return f.Present_Price <= 9.8400 ? 9.0000 : 8.1100;
+            } else {
+              return 12.7100;
+            }
+          }
+        }
+      }
+    }
+
+    // Tâm cụm K-Means (K=3) & StandardScaler đồng bộ từ dữ liệu 125 xe
+    function predictKMeans(year, kms, present, selling) {
+      const mean = [2013.288, 62457.32, 6.35864, 3.22264];
+      const scale = [3.077183, 28069.167968, 4.777148, 2.631667];
+      const centroids = [
+        [0.536658, -0.634922, 1.080617, 1.405756],
+        [-1.028717, 0.967901, -0.227372, -0.601616],
+        [0.760406, -0.615691, -0.570212, -0.393274]
+      ];
+      const labels = [
+        "Cụm 0 – Phân khúc cận cao cấp, đời mới, giữ giá tốt",
+        "Cụm 1 – Phân khúc xe đời cũ, số km cao, khấu hao lớn",
+        "Cụm 2 – Phân khúc phổ thông đời mới, tiết kiệm"
+      ];
+      const vec = [
+        (year - mean[0]) / scale[0],
+        (kms - mean[1]) / scale[1],
+        (present - mean[2]) / scale[2],
+        (selling - mean[3]) / scale[3]
+      ];
+      let bestIdx = 0, bestDist = Infinity;
+      centroids.forEach((c, i) => {
+        const d = c.reduce((sum, val, j) => sum + Math.pow(vec[j] - val, 2), 0);
+        if (d < bestDist) { bestDist = d; bestIdx = i; }
+      });
+      return labels[bestIdx];
+    }
+
+    function runPredict() {
+      const year = parseFloat(document.getElementById("year").value) || 2015;
+      const kms = parseFloat(document.getElementById("kms").value) || 35500;
+      const present = parseFloat(document.getElementById("present").value) || 5.09;
+      const fuel = document.getElementById("fuel").value;
+      const owner = parseInt(document.getElementById("owner").value) || 0;
+
+      const price = predictDecisionTree({
+        Year: year,
+        Present_Price: present,
+        Kms_Driven: kms,
+        Fuel_Type_Petrol: fuel === "Petrol" ? 1 : 0,
+        Owner: owner
+      });
+
+      const vnd = Math.round(price * 30000000).toLocaleString("vi-VN");
+      const clusterName = predictKMeans(year, kms, present, price);
+
+      document.getElementById("outPrice").textContent = `${price.toFixed(2)} Lakhs (~ ${vnd} VNĐ)`;
+document.getElementById("outCluster").textContent = `Phân khúc K-Means: ${clusterName}`;
+    }
+  </script>
+</body>
+</html>
